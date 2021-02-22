@@ -1,45 +1,60 @@
-from http_request import HttpRequest
-from conf_socket import SocketServer
+import os, sys
+sys.path.append("/Users/Pichau/Documents/projects/Http-Server/src/server/http")
 
-class MethodNotAllowed(Exception):
-    def __init__(self):
-        self.message = "405 Method Not Allowed"
-        super().__init__()
-
-    def __str__(self):
-        return self.message
-
-
-class HttpValidation(object):
-
-    def __init__(self):
-        self.avaible_methods = ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATH', 'HEAD']
-
-    def methods(self, received_method):
-        if not received_method in self.avaible_methods:
-            raise MethodNotAllowed
+import socket
+import logging
+import threading
+import conf
+from random import randint
+from request import RequestParser, Path
+from errors import HttpBaseError
+from datetime import datetime
 
 
-class HttpServer(object):
-    def __init__(self, port):
+class SocketServer(object):
+
+    @staticmethod
+    def http(port, host='0.0.0.0'):
+        server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        server_socket.bind((host, port))
+        server_socket.listen(1)
+        return server_socket
+
+class HttpBaseServer:
+    def __init__(self, port, paths):
         self.socket = SocketServer.http(port=port)
-        self._request = object()
-        self._response = object()
+        self.path = Path(local=paths)
+        print(f"[{datetime.now()}] STARTED SERVER")
+  
 
-    def main(self):
-        custom_json = "{'id': 1}"
+    def serve_forever(self) -> None:
+        while True:
+            try:
+                client_connection, client_address = self.socket.accept()
+                print(f"[{datetime.now()}] CONNECTION RECEIVED FROM {client_address[0]}")
+                request = client_connection.recv(1024).decode()
+                response = self.route(request=request)
+                client_connection.sendall(response.encode())
+                threading.Thread(target=client_connection.close, args=()).start()
+            except KeyboardInterrupt:
+                self.socket.close()
+                break
+        print(f"[{datetime.now()}] CLOSED SERVER")
 
-        while True:    
-            client_connection, client_address = self.socket.accept()
-            request = client_connection.recv(1024).decode()
-            response = f"HTTP/1.0 200 OK\nContent-Type: application/json\n\n{custom_json}\n"
-            self._request = HttpRequest.parse(request_text=request, client=client_address)
-            print(request_params._asdict())
-            client_connection.sendall(response.encode())
-            client_connection.close()
-        self.server_socket.close()
-
+    def route(self, request) -> None:
+        parser = RequestParser(request=request)
+        request_path = parser.path()
+        try:
+            return self.path.route(request_path)
+        except HttpBaseError as e:
+            return str(e)
 
 
 if __name__=='__main__':
-    server = HttpServer(8000).main()
+    route = {
+        '/teste': str(Html(html_path='../../test/index.html', status='200 OK'))
+    }
+    HttpBaseServer(port=8000, paths=route).serve_forever()
+    # server = HttpServer(8000).serve_forever()
+    # html_server = HtmlServe(8000).html('../../test/index.html').serve_forever()
