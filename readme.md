@@ -1,5 +1,5 @@
 # Http Server with sockets
-*This project is a result of learning http protocol with socket tcp abstration*
+*This project is a result of learning http protocol with tcp socket abstration*
 
 - For run this project in another document (run.py and paths.py)
 1. Router -> create a dict with path in key and a value of dict use a text of response
